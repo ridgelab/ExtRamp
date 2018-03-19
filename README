@@ -1,0 +1,70 @@
+#ExtRamp
+
+ExtRamp is a tool to extract the Ramp sequence from the beginning of genes.
+It uses the tAI values (user provided) or codon proportions to determine the speed of translation
+and the appropriate cut off point for the Ramp sequence.
+
+
+##Arguments
+
+ExtRamp requires 2 user inputs at the command line:
+	-s seq 		INPUT gzipped fasta file containing the cds gene sequences of interest
+	
+	
+Optional arguments:
+	-a tAI		(RECOMMENDED) INPUT file in csv format, contains the tAI values. Two formats are accepted as
+					shown in the two included examples (S.cerevisiae_tAI_Values and Ecoli_tAI_Values)
+	-o ramp		OUTPUT fasta file to write the ramp sequences to
+	-v vals		OUTPUT file in csv format, the sequence speed values are written here if provided
+	-t threads	The number of threads used to run the program, default is 10
+	-w window	The number of codons in the ribosome window, default is 10 codons
+	
+
+##Requirements
+
+ExtRamp.py uses Python version 3.5 in a Linux environment
+
+Python Libraries:
+1. statistics
+2. gzip
+3. csv
+4. argparse
+5. sys
+6. tqdm
+7. multiprocessing
+
+
+##Usage
+
+With tAI file (RECOMMENDED):
+
+If you do not have the tAI values, check the stAicalc at:
+http://tau-tai.azurewebsites.net/
+A large list of the species with known tAI values is present. You must select a valid fasta
+file and then click submit for the tAI values to be printed at the bottom. The fasta file 
+does not need to be from the correct species, but it won't print the values until a file 
+is selected. The values can then be exported into a CSV File.
+ 
+python ExtRamp.py -s path/to/SEQUENCES.fasta.gz -a path/to/tAI.csv -o path/to/OUTFILE.fasta 
+
+Without tAI file:
+
+python ExtRamp.py -s path/to/SEQUENCES.fasta.gz -o path/to/OUTFILE.fasta
+
+After running the top command, these updates will be printed to the terminal:
+
+Namespace(ramp='path/to/OUTFILE.fasta', seq='path/to/SEQUENCES.fasta.gz', tAI=path/to/tAI.csv, 
+threads=None, vals=None, window=10)
+Reading Sequences...
+Calculating Codon Speeds...
+Calculating Sequence Speeds...
+Isolating Ramp Sequences...
+
+
+##Example Files
+
+Try running ExtRamp.py on the provided S_cerevisiae example files in the example_files folder.
+
+python ExtRamp.py -s example_files/Saccharomyces_cerevisiae.gz -a example_files/S_cerevisiae_tAI_Values.csv -o outTest.fasta 
+
+The output should match the S_cerevisiae_output.fast file in the example_files folder. 
