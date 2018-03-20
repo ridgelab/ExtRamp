@@ -1,7 +1,8 @@
+#! /usr/bin/env python3
 '''
-Created on Nov 20, 2017
- 
-@author: logan
+This program is intended to extract a ramp of slowly translated codons from the beginning
+of a gene sequence (DNA or RNA). 
+
 '''
 import statistics
 import numpy as np
@@ -12,12 +13,11 @@ import csv
 import argparse
 import sys
 import re
-from tqdm import tqdm
 from multiprocessing import Pool, freeze_support
  
 def makeArgParser():
     parser = argparse.ArgumentParser(description='Extract the individual Ramp sequences from a collection of genes')
-    parser.add_argument('-s', '--seq', type=str, required=True, help='(input) gzip fasta file containing gene sequences')
+    parser.add_argument('-i', '--input', type=str, required=True, help='(input) gzip fasta file containing gene sequences')
     parser.add_argument('-a', '--tAI', type=str, help='(input) csv file containing the species tAI values')
     parser.add_argument('-o', '--ramp', type=str, help='(output) fasta file to write ramp sequences to')
     parser.add_argument('-v', '--vals', type=str, help='(output) csv file to write tAI/proportion values for each gene to')
@@ -26,24 +26,29 @@ def makeArgParser():
     parser.add_argument('-w', '--window', type=int, default = 9, help='the ribosome window size in codons, default = 10 codons')
     parser.add_argument('-d', '--stdev', type=int, default = 2, help='the number of standard deviations below the mean the cutoff value will be')
     parser.add_argument('-m', '--middle', type=str, default = 'gmean', help='the type of statistic used to measure the middle (consensus) efficiency')
-     
+    parser.add_argument('-r', '--rna', action="store_true", help='flag for RNA sequences. Default: DNA')
     return parser.parse_args()
      
-def readSeqFile(codonToSpeed):
-    """Returns an array of tuples (Name of sequence, Sequence) created from the input fasta file."""
+def readSeqFile(args):
+    """
+    Input: System arguments
+    Returns an array of tuples (Name of sequence, Sequence) created from the input fasta file. 
+    Sequences which are not divisible by three or have non-standard nucleotide characters are removed.
+    """
     seqArray = []  
     curSeqName = ''
     curSeq = '' 
-    if args.seq.endswith('gz'):
-        inFile = gzip.open(args.seq,'rt')
+    if args.input.endswith('.gz'):
+        inFile = gzip.open(args.input,'rt')
     else:
-        inFile = open(args.seq, 'r')
-     
+        inFile = open(args.input, 'r')
     badSeq = 0
     for line in inFile:
         if line[0] == '>':
             if curSeq != '':
-                match = re.search('[^atcgATCG]',curSeq)
+                if args.rna:
+                    curSeq.replace('U','T')
+                match = re.search('[^ATCG]',curSeq)
                 if match == None and len(curSeq)%3 ==0:
                     seqArray.append((curSeqName,curSeq))  
                 else:
@@ -51,21 +56,23 @@ def readSeqFile(codonToSpeed):
             curSeqName = line.strip('\n')
             curSeq = ''
         else:
-            curSeq += line.strip('\n')  
-    
-    match = re.search('[^atcgATCG]',curSeq)
+            curSeq += line.strip('\n').upper()  
+    if args.rna:
+        curSeq.replace('U','T')
+    match = re.search('[^ATCG]',curSeq)
     if match == None and len(curSeq)%3 ==0:
         seqArray.append((curSeqName,curSeq))  
     else:
         badSeq += 1
-    
     if badSeq > 0:
-        sys.stderr.write(str(badSeq)+ ' sequences contained non A, G, T, C characters or were not divisible by 3, so were removed!\n')
+        sys.stderr.write(str(badSeq)+ ' sequences contained non-standard nucleotide characters or were not divisible by three, so were removed!\n')
     inFile.close()
     return seqArray
  
-def calcCodonSpeeds(seqArray):
-    """Returns a dictionary of Codons to relative translation Speed. If the tAI's for
+def calcCodonSpeeds(args,seqArray):
+    """
+    Input: System arguments and an array of tuples (header, sequence) of genes.
+    Returns a dictionary of codons to relative translation Speed. If the tAI's for
     the species are provided, it reads them from the file. If tAI values are not
     provided it calculates the codon proportions using all of the gene sequences and
     then uses those values to determine translation speed. 
@@ -73,24 +80,26 @@ def calcCodonSpeeds(seqArray):
     sys.stderr.write('Calculating Codon Speeds...\n')
     codonToSpeed = {}
     totalCodons = 0
-            
     if args.tAI != None:
         codonToSpeed = csvToDict(args.tAI)
     else:
         codonGroups = AAtoCodonsDict()
         for elem in seqArray:
-            codonToSpeed, totalCodons = countCodons(elem[1], codonToSpeed, totalCodons) 
-        for elem in codonGroups.values():
+            codonToSpeed, totalCodons = countCodons(elem[1]) 
+        for elem in codonGroups:
             totalCounts = 0
             for item in elem:
                 totalCounts += codonToSpeed[item]
             for item in elem:
                 codonToSpeed[item] = codonToSpeed[item]/totalCounts
-   
     return codonToSpeed
 
 def csvToDict(filename):
-    """Returns a dictionary of Codons to their tAI speed from the user provided tAI file."""
+    """
+    Input: path to a csv file with tAI values where the first row is a list of codons 
+        and the second row is the list of tAI values for those codons. The csv file could
+        also have a codon and its tAI value on the same line, each codon separated by a new line.
+    Returns a dictionary of codons to their tAI speed from the user provided tAI file."""
     tempDict = {}
     try:
         with open(filename, newline='') as csvfile:
@@ -103,10 +112,9 @@ def csvToDict(filename):
     except:
         with open(filename, newline='') as csvfile:
             reader = csv.reader(csvfile, delimiter= ',')
-            count = -1
+            count = 0
             codonArray = []
             for row in reader:
-                count += 1
                 if count%2 == 0:
                     codonArray = row
                 else:
@@ -115,78 +123,73 @@ def csvToDict(filename):
                             tempDict[codonArray[i]] = 0.0001
                         else:   
                             tempDict[codonArray[i]] = float(row[i])
+                count += 1
     return tempDict
 
 def AAtoCodonsDict():
-    tempDict = {}
-    filePath = sys.argv[0]
-    if filePath == 'ExtRamp.py':
-        filePath = "./example_files/AAtoCodons.csv"
-    else:
-        filePath = filePath[:-10] + "example_files/AAtoCodons.csv"
-    with open(filePath, newline='') as csvfile:
-            reader = csv.reader(csvfile, delimiter= ',')
-            for row in reader:
-                tempDict[row[1]] = row[2].split(',')
-    return tempDict
-            
+    '''
+    returns a list of a list of codons that encode each amino acid. 
+    Groupings are in the following order (one letter code):
+    I,L,V,F,M,C,A,G,P,T,S,Y,W,Q,N,H,E,D,K,R,
+    '''
+    return [["ATT","ATC","ATA"],["CTT","CTC","CTA","CTG","TTA","TTG"],["GTT","GTC","GTA","GTG"],["TTT","TTC"],["ATG"],["TGT","TGC"],["GCT","GCC","GCA","GCG"],["GGT","GGC","GGA","GGG"],["CCT","CCC","CCA","CCG"],["ACT","ACC","ACA","ACG"],["TCT","TCC","TCA","TCG","AGT","AGC"],["TAT","TAC"],["TGG"],["CAA","CAG"],["AAT","AAC"],["CAT","CAC"],["GAA","GAG"],["GAT","GAC"],["AAA","AAG"],["CGT","CGC","CGA","CGG","AGA","AGG"]]
  
-def countCodons(sequence, codonToSpeed, totalCodons):
-    """Returns the total codon count and a dictionary of Codons to the total number 
-    of times the codon was found in all provided gene sequences. These are later used
-     to find the proportions of codon usage (estimate speed of translation)
+def countCodons(sequence):
     """
-    i = 0
-    while i < len(sequence):        
+    Input: A DNA sequence
+    Returns a dictionary of Codons to the total number 
+    of times the codon was found in all provided gene sequences. These are later used
+    to find the proportions of codon usage (estimate speed of translation). 
+    Also returns the total number of codons.
+    """
+    for i in range(0,len(sequence),3):
         if sequence[i:i+3] not in codonToSpeed:
-            codonToSpeed[sequence[i:i+3]] = 1
-            totalCodons += 1
-        else:
-            codonToSpeed[sequence[i:i+3]] += 1
-            totalCodons += 1
-        i += 3
+            codonToSpeed[sequence[i:i+3]] = 0
+        totalCodons += 1
+        codonToSpeed[sequence[i:i+3]] += 1
     return codonToSpeed, totalCodons
 
 def calcSeqSpeed(elem):
-    """Maps the gene name to an array of the tAI/speed values for the given sequence."""
+    """
+    Maps the gene name to an array of the tAI/speed values for the given sequence.
+    Input: tuple (header, sequence) of a fasta record
+    Output: A dictionary of the translational speed of each sequence
+    """
     seqToSpeed = {}
-    global seqArray
     seq = elem[1]     
-          
-    index = 0
     speedArray = []
-    while index < len(seq):
-        if seq[index:index+3] != 'TAA' and seq[index:index+3] != 'TAG' and seq[index:index+3] != 'TGA' and len(seq[index:index+3]) == 3:
+    for index in range(0,len(seq),3):
+        stopCodons = ['TAA','TAG','TGA']
+
+        if not seq[index:index+3] in stopCodons: 
             speedArray.append(codonToSpeed[seq[index:index+3]])
-        index += 3
+        else:
+            break
     seqToSpeed[elem[0]] = speedArray
     return seqToSpeed  
 
 def createSpeedsDict(result):
-    """Returns a dictionary of all the sequences names to the array of their tAI/speed values."""
+    """
+    Returns a dictionary of all the sequence names to the array of their tAI/speed values.
+    """
     seqToSpeed = {}
     for elem in result:
         seqToSpeed.update(elem)
     return seqToSpeed
 
-#===============================================================================
-# def geoMean(array):
-#     tempTotal = np.longfloat(1.0)
-#     for elem in array:
-#         tempTotal *= elem
-#     return tempTotal**(1/len(array))
-#===============================================================================
-    
 def findGeoSTD(array, gMean):
+    '''
+    Calculates geometric standard deviation from array and geometric mean.
+    '''
     summation = 0
     for item in array:
         summation += (log(item/gMean))**2
     return exp(sqrt(summation/(len(array)-1)))
-    
  
 def findConsensusSpeeds(seqToSpeed):
-    """Returns an array of the Consensus tAI/speed values calculated from all the given
-     genes. It is used to determine the cutoff point for the Ramp Sequences.
+    """
+    Returns an array of the Consensus tAI/speed values calculated from all the given
+    genes. It is used to determine the cutoff point for the Ramp Sequences.
     """
     consensusSpeed = []
     for i in range(200):
@@ -194,109 +197,90 @@ def findConsensusSpeeds(seqToSpeed):
         for elem in seqToSpeed:
             if i < len(seqToSpeed[elem]):
                 tAIsAtPosition.append(seqToSpeed[elem][i])
-                
         if args.middle == 'mean':
             consensusSpeed.append(statistics.mean(tAIsAtPosition))
         elif args.middle == 'gmean':
             consensusSpeed.append(gmean(tAIsAtPosition))      
         elif args.middle == 'median':
             consensusSpeed.append(statistics.median(tAIsAtPosition))
-        
     return consensusSpeed
 
-#===============================================================================
-# def riboSmoothConsensusSpeeds(consensusSpeed):
-#     """Returns a smoothed version of the consensus tAI/speed array. It 
-#     uses a window the size of a ribosomes footprint. The ribosomeWindow
-#      can be edited in the program options (default = 10 codons).
-#     """
-#     riboConsensusSpeed = []
-#     for i in range(len(consensusSpeed)-ribosomeWindowLength):
-#         riboConsensusSpeed.append(calcRiboSpeed(consensusSpeed[i:i+ribosomeWindowLength]))
-#     #===========================================================================
-#     # print('smoothed:')
-#     # print(riboConsensusSpeed)
-#     # input()
-#     #===========================================================================
-#     return riboConsensusSpeed
-#  
-#===============================================================================
 def calcRiboSpeed(speeds):
-    """Returns the average of the tAI/speed values in the ribosomeWindow."""
+    """
+    Returns the average of the tAI/speed values in the ribosomeWindow.
+    """
     speed = np.longfloat(1.0)
     for elem in speeds:
         speed *= elem
     return float(speed**(1/(len(speeds))))
  
-def writeSpeedsFile():
-    """Calls findSpeeds function and writes the sequence speeds to a csv file."""
+def writeSpeedsFile(seqArray,consensusSpeed):
+    """
+    Calls findSpeeds function and writes the sequence speeds to a csv file.
+    """
     p = Pool(args.threads)
     speedSeqs = p.map(findSpeeds, seqArray) 
-           
     csvfile = open(args.vals, 'w', newline='')
     writer = csv.writer(csvfile, delimiter=',')
     writer.writerow(["seq", 'position', 'speed_value'])
     for i in range(len(consensusSpeed)):
         writer.writerow(['consensus', i, consensusSpeed[i]])
+    from tqdm import tqdm
     for item in tqdm(speedSeqs):
         for row in item:
             writer.writerow(row)
     csvfile.close()
 
 def findSpeeds(elem):
-    """Calculates the speeds for each sequence and returns them in a csv file format."""
+    """
+    Calculates the speeds for each sequence and returns them in a csv file format.
+    """
     riboSmoothedSpeed = []
     csvLines = []
-    
     for i in range(len(seqToSpeed[elem[0]])-ribosomeWindowLength):
         riboSmoothedSpeed.append(calcRiboSpeed(seqToSpeed[elem[0]][i:i+ribosomeWindowLength]))  
         csvLines.append([elem[0],i,riboSmoothedSpeed[-1]])
     return csvLines
 
-def outputRampSeqs():
-    """Calls isolateRamp function and prints the ramp sequences to the terminal
+def outputRampSeqs(seqArray):
+    """
+    Calls isolateRamp function and prints the ramp sequences to the terminal
     or a fasta file
+	Input: tuple of header,sequence
     """
     p = Pool(args.threads)  
     rampSeqs = p.map(isolateRamp, seqArray)
     totalSeqs = len(rampSeqs)
     rampSeqs = qualityCheck(rampSeqs)
-    if args.ramp == None:
-        outPut = sys.stdout
-    else:
+    outPut = sys.stdout
+    if args.ramp:
         outPut = open(args.ramp, 'w')
-    if args.noRamp != None:
+    if args.noRamp:
         noRampFile = open(args.noRamp, 'w')
     count = 0
     for line in rampSeqs:
         if not line.startswith('None'):
             count += 1
             outPut.write(line)
-        elif args.noRamp != None:
+        elif args.noRamp:
             noRampFile.write(line[4:])
     outPut.close()
     sys.stderr.write("\n" + str(count) + " Ramp Sequences found out of " + str(totalSeqs) + " total sequences\n")
 
 def isolateRamp(elem):
-    """Calculates the cut off point for the individual ramp sequences and returns them."""
+    """
+    Calculates the cut off point for the individual ramp sequences and returns them.
+    """
     i = 0 
-    #found = True 
-    #===========================================================================
-    # print('window: ')
-    # print(seqToSpeed[elem[0]][i:i+ribosomeWindowLength])
-    # print('avgSpeed: ')
-    # print(calcRiboSpeed(seqToSpeed[elem[0]][i:i+ribosomeWindowLength]))
-    # input()
-    #===========================================================================
     while calcRiboSpeed(seqToSpeed[elem[0]][i:i+ribosomeWindowLength]) < cutOffVal and i+ribosomeWindowLength <= len(seqToSpeed[elem[0]]):
         i += 1
     if i == 0:
         return 'None' + elem[0] + '\n'
-    else:
-        return elem[0] +  '\n' + elem[1][:(i+ribosomeWindowLength)*3] + '\n'
+    return elem[0] +  '\n' + elem[1][:(i+ribosomeWindowLength)*3] + '\n'
     
 def qualityCheck(rampSeqs):
-    """Look at the lengths of the ramp sequences and only use those that are within 2 standard
+    """
+    Look at the lengths of the ramp sequences and only use those that are within 2 standard
     deviations of the mean length. The distribution is right skewed so the data is log transformed. 
     return the list of rampSeqs with the extremes removed
     """
@@ -309,7 +293,6 @@ def qualityCheck(rampSeqs):
             tempSeqs.append(i)
     meanLen = statistics.mean(lengths)
     std = statistics.stdev(lengths, meanLen)
-    
     for index in tempSeqs:
         ramp = rampSeqs[index].split('\n')
         if log(len(ramp[1])) < meanLen - (2 * std) or log(len(ramp[1])) > meanLen + (2 * std):
@@ -319,55 +302,32 @@ def qualityCheck(rampSeqs):
 
 if __name__ == '__main__':
     freeze_support
- 
     args = makeArgParser()
-    print(args)
-     
     sys.stderr.write('Reading Sequences...\n')
-    codonToSpeed = {}
-    seqArray = readSeqFile(codonToSpeed)
+    seqArray = readSeqFile(args)
     p = Pool(args.threads)
-    
-    codonToSpeed = calcCodonSpeeds(seqArray)
-             
+    codonToSpeed = calcCodonSpeeds(args,seqArray)
     sys.stderr.write('Calculating Sequence Speeds...\n')
     p = Pool(args.threads)
     seqToSpeed = createSpeedsDict(p.map(calcSeqSpeed,seqArray))
     
-    #create a consensus speed to determine average speed as a cutoff value for the ramp sequence
-    #and smooth consensus with ribosomeWindowLength
-    ribosomeWindowLength = args.window #number of codons in window default = 10
+    #create a consensus speed to determine average speed as a cutoff value for the ramp sequence and smooth consensus with ribosomeWindowLength
+    ribosomeWindowLength = args.window 
     consensusSpeed = findConsensusSpeeds(seqToSpeed)
-    
-    
-    #===========================================================================
-    # if args.middle == 'mean':
-    #     middle = statistics.mean(consensusSpeed) 
-    #     STDev = args.stdev*statistics.stdev(consensusSpeed)
-    #     cutOffVal = middle - (STDev * args.stdev)
-    # elif args.middle == 'gmean':
-    #     middle = gmean(consensusSpeed[1:])
-    #     STDev = findGeoSTD(consensusSpeed[1:], middle) 
-    #     cutOffVal = middle / (STDev**args.stdev)       
-    # elif args.middle == 'median':
-    #     middle = statistics.median(consensusSpeed) 
-    #     STDev = args.stdev*statistics.stdev(consensusSpeed)
-    #     cutOffVal = middle - (STDev * args.stdev)  
-    #===========================================================================
     middle = gmean(consensusSpeed[1:])
     STDev = findGeoSTD(consensusSpeed[1:], middle) 
     cutOffVal = middle / (STDev**args.stdev)   
-    print(middle)
-    print(STDev)
-    print(cutOffVal)
-         
+    sys.stderr.write("\nConsensus Codon Efficiency using " + args.middle + ": " + str(middle) + "\n")
+    sys.stderr.write("Standard Deviation: " + str(STDev) + "\n")
+    sys.stderr.write("Maximum Efficiency in Ramp Sequence " + str(cutOffVal) + "\n\n")
+
     #output speed values in a csv file if indicated
-    if args.vals != None:
+    if args.vals:
         sys.stderr.write('Writing Speeds File...\n')
-        writeSpeedsFile()
-                
-    #write Ramp Sequence to a fasta file  vim
+        writeSpeedsFile(seqArray,consensusSpeed)
+
+    #write Ramp Sequence to a fasta file
     sys.stderr.write('Isolating Ramp Sequences...\n')      
-    outputRampSeqs()
+    outputRampSeqs(seqArray)
              
  

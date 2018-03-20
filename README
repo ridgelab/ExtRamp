@@ -1,14 +1,22 @@
-#ExtRamp
+##########################
+
+Extracting the Ramp Sequence from genes
+ExtRamp.py
+Created By: Logan Brase and Justin Miller
+Email: jmiller@byu.edu
+
+##########################
 
 ExtRamp is a tool to extract the Ramp sequence from the beginning of genes.
 It uses the tAI values (user provided) or codon proportions to determine the speed of translation
 and the appropriate cut off point for the Ramp sequence.
 
+##########################
 
-##Arguments
+ARGUMENT OPTIONS:
 
 ExtRamp requires 2 user inputs at the command line:
-	-s seq 		INPUT gzipped fasta file containing the cds gene sequences of interest
+	-i input	INPUT gzipped fasta file containing the cds gene sequences of interest
 	
 	
 Optional arguments:
@@ -18,23 +26,39 @@ Optional arguments:
 	-v vals		OUTPUT file in csv format, the sequence speed values are written here if provided
 	-t threads	The number of threads used to run the program, default is 10
 	-w window	The number of codons in the ribosome window, default is 10 codons
+	-n noRamp   OUTPUT Text file to write the gene names that contained no ramp sequence.
+	-d stdev    The number of standard deviations below the mean the cutoff value will be. Deafult is 2.
+	-m middle   The type of statistic used to measure the middle (consensus) efficiency. Options are 'mean', 'gmean', and 'median'. Default is 'gmean' 
+	-r rna      A flag for RNA sequences. Default is DNA.
 	
 
-##Requirements
+##########################
+
+REQUIREMENTS:
 
 ExtRamp.py uses Python version 3.5 in a Linux environment
 
 Python Libraries:
-1. statistics
-2. gzip
-3. csv
-4. argparse
-5. sys
-6. tqdm
-7. multiprocessing
+1.  statistics
+2.  gzip
+3.  csv
+4.  argparse
+5.  sys
+6.  tqdm (optional)
+7.  multiprocessing
+8.  numpy
+9.  scipy
+10. math
+11. re
 
 
-##Usage
+If any of those libraries is not currently in your Python Path, use the following command:
+pip3 install --user [library_name]
+to install the library to your path.
+
+
+##########################
+USAGE
 
 With tAI file (RECOMMENDED):
 
@@ -45,26 +69,47 @@ file and then click submit for the tAI values to be printed at the bottom. The f
 does not need to be from the correct species, but it won't print the values until a file 
 is selected. The values can then be exported into a CSV File.
  
-python ExtRamp.py -s path/to/SEQUENCES.fasta.gz -a path/to/tAI.csv -o path/to/OUTFILE.fasta 
+python ExtRamp.py -i path/to/SEQUENCES.fasta.gz -a path/to/tAI.csv -o path/to/OUTFILE.fasta 
 
 Without tAI file:
 
-python ExtRamp.py -s path/to/SEQUENCES.fasta.gz -o path/to/OUTFILE.fasta
+python ExtRamp.py -i path/to/SEQUENCES.fasta.gz -o path/to/OUTFILE.fasta
 
-After running the top command, these updates will be printed to the terminal:
-
-Namespace(ramp='path/to/OUTFILE.fasta', seq='path/to/SEQUENCES.fasta.gz', tAI=path/to/tAI.csv, 
-threads=None, vals=None, window=10)
+After running the top command, these updates will be printed to standard error:
 Reading Sequences...
 Calculating Codon Speeds...
 Calculating Sequence Speeds...
+
+Consensus Codon Efficiency using gmean: [NUMBER]
+Standard Deviation: [NUMBER]
+Maximum Efficiency in Ramp Sequence [NUMBER]
+
 Isolating Ramp Sequences...
 
+[NUMBER] Ramp Sequences found out of [NUMBER] total sequences
 
-##Example Files
+##########################
+
+EXAMPLE USAGE
 
 Try running ExtRamp.py on the provided S_cerevisiae example files in the example_files folder.
 
-python ExtRamp.py -s example_files/Saccharomyces_cerevisiae.gz -a example_files/S_cerevisiae_tAI_Values.csv -o outTest.fasta 
+python ExtRamp.py -i example_files/Saccharomyces_cerevisiae.gz -a example_files/S_cerevisiae_tAI_Values.csv -o outTest.fasta 
 
 The output should match the S_cerevisiae_output.fast file in the example_files folder. 
+
+##########################
+
+License:
+
+This algorithm is free for all academic and non-profit research purposes. 
+
+We only ask that you please cite the following paper if you use this algorithm:
+Codon Aversion Motifs: An alignment-free method to recover phylogenies.
+
+For any for-profit usage, please contact Logan Brase or Justin Miller at jmiller@byu.edu
+
+##########################
+
+Thank you, and happy researching!!
+
