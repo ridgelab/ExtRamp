@@ -24,7 +24,7 @@ def makeArgParser():
     parser.add_argument('-n', '--noRamp', type=str, help='(output) txt file to write the gene names that contained no ramp sequence')
     parser.add_argument('-t', '--threads', type=int, help='the number of threads you want to run, default = 10')
     parser.add_argument('-w', '--window', type=int, default = 9, help='the ribosome window size in codons, default = 10 codons')
-    parser.add_argument('-d', '--stdev', type=int, default = 2, help='the number of standard deviations below the mean the cutoff value will be')
+    parser.add_argument('-d', '--stdev', type=float, default = 2.0, help='the number of standard deviations below the mean the cutoff value will be')
     parser.add_argument('-m', '--middle', type=str, default = 'gmean', help='the type of statistic used to measure the middle (consensus) efficiency')
     parser.add_argument('-r', '--rna', action="store_true", help='flag for RNA sequences. Default: DNA')
     return parser.parse_args()
