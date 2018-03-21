@@ -85,7 +85,7 @@ def calcCodonSpeeds(args,seqArray):
     else:
         codonGroups = AAtoCodonsDict()
         for elem in seqArray:
-            codonToSpeed, totalCodons = countCodons(elem[1]) 
+            codonToSpeed, totalCodons = countCodons(elem[1], codonToSpeed, totalCodons) 
         for elem in codonGroups:
             totalCounts = 0
             for item in elem:
@@ -134,7 +134,7 @@ def AAtoCodonsDict():
     '''
     return [["ATT","ATC","ATA"],["CTT","CTC","CTA","CTG","TTA","TTG"],["GTT","GTC","GTA","GTG"],["TTT","TTC"],["ATG"],["TGT","TGC"],["GCT","GCC","GCA","GCG"],["GGT","GGC","GGA","GGG"],["CCT","CCC","CCA","CCG"],["ACT","ACC","ACA","ACG"],["TCT","TCC","TCA","TCG","AGT","AGC"],["TAT","TAC"],["TGG"],["CAA","CAG"],["AAT","AAC"],["CAT","CAC"],["GAA","GAG"],["GAT","GAC"],["AAA","AAG"],["CGT","CGC","CGA","CGG","AGA","AGG"]]
  
-def countCodons(sequence):
+def countCodons(sequence, codonToSpeed, totalCodons):
     """
     Input: A DNA sequence
     Returns a dictionary of Codons to the total number 
