@@ -24,7 +24,8 @@ def makeArgParser():
     parser.add_argument('-n', '--noRamp', type=str, help='(output) txt file to write the gene names that contained no ramp sequence')
     parser.add_argument('-t', '--threads', type=int, help='the number of threads you want to run, default = 10')
     parser.add_argument('-w', '--window', type=int, default = 9, help='the ribosome window size in codons, default = 10 codons')
-    parser.add_argument('-d', '--stdev', type=float, default = 2.0, help='the number of standard deviations below the mean the cutoff value will be')
+    parser.add_argument('-s', '--stdev', type=float, default = 2.0, help='the number of standard deviations below the mean the cutoff value to be included as a ramp')
+    parser.add_argument('-d', '--stdevRampLength', type=float, default = 2.0, help='the number of standard deviations in the lengths of the ramp sequences')
     parser.add_argument('-m', '--middle', type=str, default = 'gmean', help='the type of statistic used to measure the middle (consensus) efficiency')
     parser.add_argument('-r', '--rna', action="store_true", help='flag for RNA sequences. Default: DNA')
     return parser.parse_args()
@@ -85,12 +86,17 @@ def calcCodonSpeeds(args,seqArray):
     else:
         codonGroups = AAtoCodonsDict()
         for elem in seqArray:
-            codonToSpeed, totalCodons = countCodons(elem[1]) 
+            codonToSpeed, totalCodons = countCodons(elem[1],codonToSpeed,totalCodons) 
         for elem in codonGroups:
             totalCounts = 0
             for item in elem:
+                if not item in codonToSpeed:
+                    continue
                 totalCounts += codonToSpeed[item]
             for item in elem:
+                if not item in codonToSpeed:
+                    codonToSpeed[item] = 0.0001
+                    continue
                 codonToSpeed[item] = codonToSpeed[item]/totalCounts
     return codonToSpeed
 
@@ -134,7 +140,7 @@ def AAtoCodonsDict():
     '''
     return [["ATT","ATC","ATA"],["CTT","CTC","CTA","CTG","TTA","TTG"],["GTT","GTC","GTA","GTG"],["TTT","TTC"],["ATG"],["TGT","TGC"],["GCT","GCC","GCA","GCG"],["GGT","GGC","GGA","GGG"],["CCT","CCC","CCA","CCG"],["ACT","ACC","ACA","ACG"],["TCT","TCC","TCA","TCG","AGT","AGC"],["TAT","TAC"],["TGG"],["CAA","CAG"],["AAT","AAC"],["CAT","CAC"],["GAA","GAG"],["GAT","GAC"],["AAA","AAG"],["CGT","CGC","CGA","CGG","AGA","AGG"]]
  
-def countCodons(sequence):
+def countCodons(sequence,codonToSpeed,totalCodons):
     """
     Input: A DNA sequence
     Returns a dictionary of Codons to the total number 
@@ -197,6 +203,9 @@ def findConsensusSpeeds(seqToSpeed):
         for elem in seqToSpeed:
             if i < len(seqToSpeed[elem]):
                 tAIsAtPosition.append(seqToSpeed[elem][i])
+        if len(tAIsAtPosition) == 0:
+            consensusSpeed.append(0.0001)
+            continue
         if args.middle == 'mean':
             consensusSpeed.append(statistics.mean(tAIsAtPosition))
         elif args.middle == 'gmean':
@@ -242,16 +251,16 @@ def findSpeeds(elem):
         csvLines.append([elem[0],i,riboSmoothedSpeed[-1]])
     return csvLines
 
-def outputRampSeqs(seqArray):
+def outputRampSeqs(seqArray,numStDev):
     """
     Calls isolateRamp function and prints the ramp sequences to the terminal
     or a fasta file
-	Input: tuple of header,sequence
+    Input: tuple of header,sequence
     """
     p = Pool(args.threads)  
     rampSeqs = p.map(isolateRamp, seqArray)
     totalSeqs = len(rampSeqs)
-    rampSeqs = qualityCheck(rampSeqs)
+    rampSeqs = qualityCheck(rampSeqs,numStDev)
     outPut = sys.stdout
     if args.ramp:
         outPut = open(args.ramp, 'w')
@@ -278,9 +287,9 @@ def isolateRamp(elem):
         return 'None' + elem[0] + '\n'
     return elem[0] +  '\n' + elem[1][:(i+ribosomeWindowLength)*3] + '\n'
     
-def qualityCheck(rampSeqs):
+def qualityCheck(rampSeqs,numStDev):
     """
-    Look at the lengths of the ramp sequences and only use those that are within 2 standard
+    Look at the lengths of the ramp sequences and only use those that are within numStDev standard
     deviations of the mean length. The distribution is right skewed so the data is log transformed. 
     return the list of rampSeqs with the extremes removed
     """
@@ -291,11 +300,17 @@ def qualityCheck(rampSeqs):
             ramp = rampSeqs[i].split('\n')
             lengths.append(log(len(ramp[1])))
             tempSeqs.append(i)
+    if len(lengths) == 0:
+        sys.stderr.write('NO RAMP SEQUENCES FOUND\n')
+        sys.exit()
+    if len(lengths) == 1:
+        return rampSeqs
+
     meanLen = statistics.mean(lengths)
     std = statistics.stdev(lengths, meanLen)
     for index in tempSeqs:
         ramp = rampSeqs[index].split('\n')
-        if log(len(ramp[1])) < meanLen - (2 * std) or log(len(ramp[1])) > meanLen + (2 * std):
+        if log(len(ramp[1])) < meanLen - (numStDev * std) or log(len(ramp[1])) > meanLen + (numStDev * std):
             newLine = 'None' + ramp[0] + '\n'
             rampSeqs[index] = newLine
     return rampSeqs
@@ -310,7 +325,6 @@ if __name__ == '__main__':
     sys.stderr.write('Calculating Sequence Speeds...\n')
     p = Pool(args.threads)
     seqToSpeed = createSpeedsDict(p.map(calcSeqSpeed,seqArray))
-    
     #create a consensus speed to determine average speed as a cutoff value for the ramp sequence and smooth consensus with ribosomeWindowLength
     ribosomeWindowLength = args.window 
     consensusSpeed = findConsensusSpeeds(seqToSpeed)
@@ -321,6 +335,7 @@ if __name__ == '__main__':
     sys.stderr.write("Standard Deviation: " + str(STDev) + "\n")
     sys.stderr.write("Maximum Efficiency in Ramp Sequence " + str(cutOffVal) + "\n\n")
 
+
     #output speed values in a csv file if indicated
     if args.vals:
         sys.stderr.write('Writing Speeds File...\n')
@@ -328,6 +343,6 @@ if __name__ == '__main__':
 
     #write Ramp Sequence to a fasta file
     sys.stderr.write('Isolating Ramp Sequences...\n')      
-    outputRampSeqs(seqArray)
+    outputRampSeqs(seqArray,args.stdevRampLength)
              
  
