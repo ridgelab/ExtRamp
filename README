@@ -27,7 +27,8 @@ Optional arguments:
 	-t threads	The number of threads used to run the program, default is 10
 	-w window	The number of codons in the ribosome window, default is 10 codons
 	-n noRamp   OUTPUT Text file to write the gene names that contained no ramp sequence.
-	-d stdev    The number of standard deviations below the mean the cutoff value will be. Deafult is 2.
+	-s stdev    The number of standard deviations below the mean the cutoff value will be. Default is 2.
+	-d stdevRampLength	The number of standard deviations in the lengths of the ramp sequences. Default is 2.
 	-m middle   The type of statistic used to measure the middle (consensus) efficiency. Options are 'mean', 'gmean', and 'median'. Default is 'gmean' 
 	-r rna      A flag for RNA sequences. Default is DNA.
 	
