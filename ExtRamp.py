@@ -187,6 +187,8 @@ def findGeoSTD(array, gMean):
     '''
     Calculates geometric standard deviation from array and geometric mean.
     '''
+    if args.middle != 'gmean': #If the user specified other mean
+        return statistics.stdev(array,gMean)
     summation = 0
     for item in array:
         summation += (log(item/gMean))**2
@@ -331,8 +333,13 @@ if __name__ == '__main__':
     ribosomeWindowLength = args.window 
     consensusSpeed = findConsensusSpeeds(seqToSpeed)
     middle = gmean(consensusSpeed[1:])
+    
     STDev = findGeoSTD(consensusSpeed[1:], middle) 
-    cutOffVal = middle / (STDev**args.stdev)   
+    cutOffVal = 0.0
+    if args.middle == 'gmean':
+        cutOffVal = middle / (STDev**args.stdev)   
+    else:
+        cutOffVal = middle - (STDev*args.stdev)   
     sys.stderr.write("\nConsensus Codon Efficiency using " + args.middle + ": " + str(middle) + "\n")
     sys.stderr.write("Standard Deviation: " + str(STDev) + "\n")
     sys.stderr.write("Maximum Efficiency in Ramp Sequence " + str(cutOffVal) + "\n\n")
