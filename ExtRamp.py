@@ -17,7 +17,7 @@ from multiprocessing import Pool, freeze_support
  
 def makeArgParser():
     parser = argparse.ArgumentParser(description='Extract the individual Ramp sequences from a collection of genes')
-    parser.add_argument('-i', '--input', type=str, required=True, help='(input) gzip fasta file containing gene sequences')
+    parser.add_argument('-i', '--input', type=str, required=True, help='(input) fasta file containing gene sequences (.gz for gzipped)')
     parser.add_argument('-a', '--tAI', type=str, help='(input) csv file containing the species tAI values')
     parser.add_argument('-o', '--ramp', type=str, help='(output) fasta file to write ramp sequences to')
     parser.add_argument('-v', '--vals', type=str, help='(output) csv file to write tAI/proportion values for each gene to')
