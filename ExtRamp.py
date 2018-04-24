@@ -218,6 +218,8 @@ def calcRiboSpeed(speeds):
     """
     Returns the average of the tAI/speed values in the ribosomeWindow.
     """
+    if len(speeds)==0:
+        return 0.0001
     speed = np.longfloat(1.0)
     for elem in speeds:
         speed *= elem

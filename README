@@ -15,7 +15,7 @@ and the appropriate cut off point for the Ramp sequence.
 
 ARGUMENT OPTIONS:
 
-ExtRamp requires 2 user inputs at the command line:
+ExtRamp requires 1 user input at the runtime:
 	-i input	INPUT gzipped fasta file containing the cds gene sequences of interest
 	
 	
