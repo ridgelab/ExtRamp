@@ -87,7 +87,7 @@ def readSeqFile(args, inputFile):
     if args.rna:
         curSeq.replace('U','T')
     match = re.search('[^ATCG]',curSeq)
-    if match == None and len(curSeq)%3 ==0:
+    if match == None and len(curSeq)%3 ==0 and len(curSeq) >=args.seqLength:
         startCodon = curSeq[0:3] 
         curSeq = curSeq[3:] #remove start codon
         stopCodon = curSeq[-3:] 
@@ -128,11 +128,19 @@ def calcCodonSpeeds(seqArray):
             totalCounts += codonToSpeed[codon]
         maxRSCU = 0.0
         for codon in aa:
+            if numCodons ==0 or totalCounts==0:
+                rscu = 0.0001
+                codonToSpeed[codon] = rscu  #codonToSpeed has RSCU
+                continue
             rscu = codonToSpeed[codon] / ((1.0/numCodons)*totalCounts)   
             if rscu > maxRSCU:
                 maxRSCU = rscu
             codonToSpeed[codon] = rscu  #codonToSpeed has RSCU
         for codon in aa:
+            if maxRSCU == 0:
+                w = 0.0001
+                codonToSpeed[codon] = w #codonToSpeed has relative adaptiveness of codons
+                continue
             w = codonToSpeed[codon] / maxRSCU #w=relative adaptiveness of codons
             codonToSpeed[codon] = w #codonToSpeed has relative adaptiveness of codons
     return codonToSpeed
@@ -427,6 +435,10 @@ if __name__ == '__main__':
     seqArray = readSeqFile(args, args.input)
     if args.verbose:
         sys.stderr.write("Total Sequences: " +str(len(seqArray)) + '\n')
+    if len(seqArray) ==0:
+        sys.stderr.write("No sequences passed the initial filter. Ramp sequences were unable to be calculated.\n")
+        sys.exit()
+
     codonToSpeed = {}
     if args.tAI:
         codonToSpeed = csvToDict(args.tAI)
