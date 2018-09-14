@@ -26,7 +26,7 @@ def makeArgParser():
     parser.add_argument('-l', '--vals', type=str, help='(output) csv file to write tAI/relative adaptiveness values for ribosome-smoothed efficiency at each window')
     parser.add_argument('-p', '--speeds', type=str, help='(output) speeds file to write tAI/relative adaptiveness values for each position in the sequence from the codon after the start codon to the codon before the stop codon. Format: Header newline list of values')
     parser.add_argument('-n', '--noRamp', type=str, help='(output) txt file to write the gene names that contained no ramp sequence')
-    parser.add_argument('-z', '--removedSequences', type=str, help='(output) Write the header lines that are removed (e.g., sequence not long enough or not divisible by 3) to output file')
+    parser.add_argument('-z', '--removedSequences', default = None, type=str, help='(output) Write the header lines that are removed (e.g., sequence not long enough or not divisible by 3) to output file')
     parser.add_argument('-t', '--threads', type=int, help='the number of threads you want to run, default = all')
     parser.add_argument('-w', '--window', type=int, default = 9, help='the ribosome window size in codons, default = 9 codons')
     parser.add_argument('-s', '--stdev', type=float, default = -1.0, help='the number of standard deviations below the mean the cutoff value to be included as a ramp for gmean and mean. Not used by default')
@@ -78,7 +78,8 @@ def readSeqFile(args, inputFile):
                     curSeq = curSeq[0:-3] #remove stop codon
                     seqArray.append((curSeqName,curSeq,startCodon,stopCodon))  
                 else:
-                    removedSeq.write(curSeqName +"\n")
+                    if args.removedSequences and inputFile == args.input:
+                        removedSeq.write(curSeqName +"\n")
                     badSeq += 1
             curSeqName = line.strip('\n')
             curSeq = ''
@@ -459,7 +460,7 @@ if __name__ == '__main__':
             sys.stderr.write("Writing speeds data to file.\n")
         output_speeds = open(args.speeds,'w')
         for header in seqToSpeed:
-            output_speeds.write(header + "\n" + str(seqToSpeed[header]) + "\n")
+            output_speeds.write(header + "\n" + str(seqToSpeed[header])[1:-1] + "\n")
         output_speeds.close()
     #create a consensus speed to determine average speed as a cutoff value for the ramp sequence and smooth consensus with ribosomeWindowLength
     percentThatIsRamp =args.cutoff
