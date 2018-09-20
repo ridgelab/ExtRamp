@@ -101,16 +101,6 @@ The output should match the S_cerevisiae_output.fast file in the example_files f
 
 ##########################
 
-License:
-
-This algorithm is free for all academic and non-profit research purposes. 
-
-We only ask that you please cite the following paper if you use this algorithm:
-Codon Aversion Motifs: An alignment-free method to recover phylogenies.
-
-For any for-profit usage, please contact Logan Brase at braselogan@gmail.com or Justin Miller at jmiller@byu.edu
-
-##########################
 
 Thank you, and happy researching!!
 
