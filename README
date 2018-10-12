@@ -20,17 +20,24 @@ ExtRamp requires 1 user input at the runtime:
 	
 	
 Optional arguments:
-	-a tAI		(RECOMMENDED) INPUT file in csv format, contains the tAI values. Two formats are accepted as
-					shown in the two included examples (S.cerevisiae_tAI_Values and Ecoli_tAI_Values)
-	-o ramp		OUTPUT fasta file to write the ramp sequences to
-	-v vals		OUTPUT file in csv format, the sequence speed values are written here if provided
-	-t threads	The number of threads used to run the program, default is 10
-	-w window	The number of codons in the ribosome window, default is 10 codons
-	-n noRamp   OUTPUT Text file to write the gene names that contained no ramp sequence.
-	-s stdev    The number of standard deviations below the mean the cutoff value will be. Default is 2.
-	-d stdevRampLength	The number of standard deviations in the lengths of the ramp sequences. Default is 2.
-	-m middle   The type of statistic used to measure the middle (consensus) efficiency. Options are 'mean', 'gmean', and 'median'. Default is 'gmean' 
-	-r rna      A flag for RNA sequences. Default is DNA.
+ -a tAI		        INPUT file in csv format, contains the tAI values. Two formats are accepted as shown in the two included examples (S.cerevisiae_tAI_Values and Ecoli_tAI_Values)
+ -u rscu                INPUT fasta file used to compute relative synonymous codon usage and relative adaptiveness of codons
+ -o ramp	       	OUTPUT fasta file to write the ramp sequences to
+ -v verbose             Flag to print progress to standard error
+ -l vals	       	OUTPUT file in csv format, the sequence speed values are written here if provided
+ -p speeds              OUTPUT speeds file to write tAI/relative adaptiveness values for each position in the sequence from the codon after the start codon to the codon before the stop codon. Format: Header newline list of values
+ -n noRamp              OUTPUT Text file to write the gene names that contained no ramp sequence.
+ -z removedSequences    OUTPUT Write the header lines that are removed (e.g., sequence not long enough or not divisible by 3) to output file
+ -t threads       	The number of threads used to run the program, default is 9
+ -w window	        The number of codons in the ribosome window, default is 9 codons
+ -s stdev               The number of standard deviations below the mean the cutoff value will be. Default is not used.
+ -d stdevRampLength	The number of standard deviations in the lengths of the ramp sequences. Default is not used.
+ -m middle              The type of statistic used to measure the middle (consensus) efficiency. Options are 'hmean','mean', 'gmean', and 'median'. Default is 'hmean' 
+ -r rna                 Flag for RNA sequences. Default is DNA.
+ -f determine_cutoff    Flag to determine outlier percentages for mean cutoff based on species FASTA file. Default: local minimum in first 8 percent of gene')
+ -c cutoff              Cutoff for where the local minimum must occur in the gene for a ramp to be calculated. If --determine_cutoff (-f) is used, then this value may change. Is not used if standard deviations are set. Default:8
+ -e determine_cutoff_percent Cutoff for determining percent of gene that is in an outlier region. Used in conjunction with -f. Default is true outliers. Other options include numbers from 0-99, which indicate the region of a box plot. For instance, 75 means the 75th quartile or above. Default: True Outliers
+ -q seqLength           Minimum nucleotide sequence length. Default is 100 amino acids * 3 = 300 nucleotides
 	
 
 ##########################
@@ -74,14 +81,14 @@ python ExtRamp.py -i path/to/SEQUENCES.fasta.gz -a path/to/tAI.csv -o path/to/OU
 
 Without tAI file:
 
-python ExtRamp.py -i path/to/SEQUENCES.fasta.gz -o path/to/OUTFILE.fasta
+python ExtRamp.py -i path/to/SEQUENCES.fasta.gz -o path/to/OUTFILE.fasta -v
 
 After running the top command, these updates will be printed to standard error:
 Reading Sequences...
 Calculating Codon Speeds...
 Calculating Sequence Speeds...
 
-Consensus Codon Efficiency using gmean: [NUMBER]
+Consensus Codon Efficiency using hmean: [NUMBER]
 Standard Deviation: [NUMBER]
 Maximum Efficiency in Ramp Sequence [NUMBER]
 
@@ -97,7 +104,7 @@ Try running ExtRamp.py on the provided S_cerevisiae example files in the example
 
 python ExtRamp.py -i example_files/Saccharomyces_cerevisiae.gz -a example_files/S_cerevisiae_tAI_Values.csv -o outTest.fasta 
 
-The output should match the S_cerevisiae_output.fast file in the example_files folder. 
+The output should match the S_cerevisiae_output.fasta file in the example_files folder (note: due to multithreading, the order of the sequences might vary)
 
 ##########################
 
