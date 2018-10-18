@@ -27,6 +27,7 @@ def makeArgParser():
     parser.add_argument('-p', '--speeds', type=str, help='(output) speeds file to write tAI/relative adaptiveness values for each position in the sequence from the codon after the start codon to the codon before the stop codon. Format: Header newline list of values')
     parser.add_argument('-n', '--noRamp', type=str, help='(output) txt file to write the gene names that contained no ramp sequence')
     parser.add_argument('-z', '--removedSequences', default = None, type=str, help='(output) Write the header lines that are removed (e.g., sequence not long enough or not divisible by 3) to output file')
+    parser.add_argument('-x', '--afterRamp', type=str, required=False, help='(output) fasta file containing gene sequences after the identified ramp sequence')
     parser.add_argument('-t', '--threads', type=int, help='the number of threads you want to run, default = all')
     parser.add_argument('-w', '--window', type=int, default = 9, help='the ribosome window size in codons, default = 9 codons')
     parser.add_argument('-s', '--stdev', type=float, default = -1.0, help='the number of standard deviations below the mean the cutoff value to be included as a ramp for gmean and mean. Not used by default')
@@ -294,17 +295,27 @@ def outputRampSeqs(rampSeqs,args):
     outPut = sys.stdout
     if args.ramp:
         outPut = open(args.ramp, 'w')
+    if args.afterRamp:
+        afterRampFile = open(args.afterRamp,'w')
     if args.noRamp and args.determine_cutoff:
         noRampFile = open(args.noRamp, 'a')
     elif args.noRamp:
         noRampFile = open(args.noRamp, 'w')
     count = 0
     for line in rampSeqs:
-        if not line.startswith('None'):
-            count += 1
-            outPut.write(line)
-        elif args.noRamp:
-            noRampFile.write(line[4:])
+        if not args.afterRamp:
+            if not line.startswith('None'):
+                count += 1
+                outPut.write(line)
+            elif args.noRamp:
+                noRampFile.write(line[4:])
+        else:
+            if not line[0].startswith('None'):
+                count += 1
+                outPut.write(line[0])
+                afterRampFile.write(line[1])
+            elif args.noRamp:
+                noRampFile.write(line[0][4:])
     outPut.close()
     if args.verbose:
         sys.stderr.write("\n" + str(count) + " Ramp Sequences found\n")
@@ -322,8 +333,15 @@ def isolateRamp(record):
     while calcRiboSpeed(seqToSpeed[record[0]][i:i+ribosomeWindowLength]) < cutOffVal and (i+ribosomeWindowLength) <= len(seqToSpeed[record[0]]):
         i += 1
     if i == 0:
-        return 'None' + record[0] + '\n'
-    return record[0] +  '\n' + record[2] + record[1][:(i+ribosomeWindowLength)*3] + '\n'
+        if not args.afterRamp:
+            return 'None' + record[0] + '\n'
+        else:
+            return tuple(['None' + record[0] + '\n'])
+
+    if not args.afterRamp:
+        return record[0] +  '\n' + record[2] + record[1][:(i+ribosomeWindowLength)*3] + '\n'
+    else:
+        return tuple([record[0] +  '\n' + record[2] + record[1][:(i+ribosomeWindowLength)*3] + '\n',record[0] +  '\n' + record[1][(i+ribosomeWindowLength)*3:] +record[3]+ '\n'])
 
 def isolateRampHmean(record):
     speeds = seqToSpeed[record[0]]
@@ -338,8 +356,14 @@ def isolateRampHmean(record):
         i =pos[0]
         for x in range(i,len(windowMeans)):
             if windowMeans[x] >= mean:
-                return record[0] +  '\n' + record[2] + record[1][:(x+ribosomeWindowLength)*3] + '\n'
-    return 'None' + record[0] + '\n'
+                if not args.afterRamp:
+                    return record[0] +  '\n' + record[2] + record[1][:(x+ribosomeWindowLength)*3] + '\n'
+                else:
+                    return tuple([record[0] +  '\n' + record[2] + record[1][:(x+ribosomeWindowLength)*3] + '\n',record[0] +  '\n' + record[1][(x+ribosomeWindowLength)*3:] +record[3]+ '\n'])
+    if not args.afterRamp:
+        return 'None' + record[0] + '\n'
+    else:
+        return tuple(['None' + record[0] + '\n'])
 
 def qualityCheck(rampSeqs,numStDev):
     
@@ -502,7 +526,10 @@ if __name__ == '__main__':
             noRampFile = open(args.noRamp,'w')
         for record in seqArray:
             if record[0] in posOfRamp:
-                rampSeqs.append(record[0] +  '\n' + record[2] + record[1][:(posOfRamp[record[0]]+ribosomeWindowLength)*3] + '\n')
+                if not args.afterRamp:
+                    rampSeqs.append(record[0] +  '\n' + record[2] + record[1][:(posOfRamp[record[0]]+ribosomeWindowLength)*3] + '\n')
+                else:
+                    rampSeqs.append(tuple([record[0] +  '\n' + record[2] + record[1][:(posOfRamp[record[0]]+ribosomeWindowLength)*3] + '\n',record[0] +  '\n' + record[1][(posOfRamp[record[0]]+ribosomeWindowLength)*3:] +record[3]+ '\n']))
             elif args.noRamp:
                 noRampFile.write(record[0] + '\n')
         if args.noRamp:

@@ -28,6 +28,7 @@ Optional arguments:
  -p speeds              OUTPUT speeds file to write tAI/relative adaptiveness values for each position in the sequence from the codon after the start codon to the codon before the stop codon. Format: Header newline list of values
  -n noRamp              OUTPUT Text file to write the gene names that contained no ramp sequence.
  -z removedSequences    OUTPUT Write the header lines that are removed (e.g., sequence not long enough or not divisible by 3) to output file
+ -x afterRamp           OUTPUT Fasta file containing gene sequences after the identified ramp sequence
  -t threads       	The number of threads used to run the program, default is 9
  -w window	        The number of codons in the ribosome window, default is 9 codons
  -s stdev               The number of standard deviations below the mean the cutoff value will be. Default is not used.
