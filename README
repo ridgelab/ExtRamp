@@ -40,6 +40,7 @@ Optional arguments:
  -e determine_cutoff_percent Cutoff for determining percent of gene that is in an outlier region. Used in conjunction with -f. Default is true outliers. Other options include numbers from 0-99, which indicate the region of a box plot. For instance, 75 means the 75th quartile or above. Default: True Outliers
  -q seqLength           Minimum nucleotide sequence length. Default is 100 amino acids * 3 = 300 nucleotides
 	
+NOTE: Only the standard codon table is supported because many codon tables have ambigous codons that encode for more than one amino acid. Since we use the relative codon adaptiveness for each amino acid, we cannot account for ambiguous codons.
 
 ##########################
 
