@@ -99,8 +99,7 @@ Isolating Ramp Sequences...
 [NUMBER] Ramp Sequences found out of [NUMBER] total sequences
 
 ##########################
-
-EXAMPLE USAGE
+EXAMPLE USAGE WITH TAI VALUES
 
 Try running ExtRamp.py on the provided S_cerevisiae example files in the example_files folder.
 
@@ -109,7 +108,15 @@ python ExtRamp.py -i example_files/Saccharomyces_cerevisiae.gz -a example_files/
 The output should match the S_cerevisiae_output.fasta file in the example_files folder (note: due to multithreading, the order of the sequences might vary)
 
 ##########################
+EXAMPLE USAGE WITHOUT TAI VALUES
 
+python ExtRamp.py -i example_files/Homo_sapiens.gz -o output.fasta 
 
-Thank you, and happy researching!!
+For us, that command takes approximately six minutes of user time. Using 16 cores, it took approximately 30 seconds.
+
+output.fasta should match example_files/Homo_sapiens_output.fasta (note: the order of the sequences might vary)
+
+##########################
+
+Thank you, and happy researching!
 
