@@ -209,7 +209,6 @@ def calcSeqSpeed(elem):
     Input: tuple (header, sequence) of a fasta record
     Output: A dictionary of seq name to a tuple (translational speed of each sequence, cutOffValue for rampSequence)
     """
-
     seqToSpeed = {}
     seq = elem[1]
     speedArray = []
@@ -446,6 +445,23 @@ def getCutoffValue(counts):
         return (x-1) #-1 because it goes 1 past the last outlier. Divide by 100 to turn percent into decimal
     return 0
 
+def init_pool(speedFromCodon):
+    #Necessary for Windows multiprocessing
+    global codonToSpeed
+    codonToSpeed=speedFromCodon
+
+def init_pool2(speedFromSeq,lengthOfRibosome,funcMiddle,arrgs,percentRamp):
+    #Necessary for Windows multiprocessing
+    global seqToSpeed
+    global ribosomeWindowLength
+    global middleFunc
+    global args
+    global percentThatIsRamp
+    ribosomeWindowLength=lengthOfRibosome
+    seqToSpeed=speedFromSeq
+    middleFunc=funcMiddle
+    args=arrgs
+    percentThatIsRamp=percentRamp
 if __name__ == '__main__':
     freeze_support()
     args = makeArgParser()
@@ -477,7 +493,7 @@ if __name__ == '__main__':
             codonToSpeed = calcCodonSpeeds(seqArray)
     if args.verbose:
         sys.stderr.write('Calculating Sequence Speeds...\n')
-    p = Pool(args.threads)
+    p = Pool(processes=args.threads,initializer=init_pool,initargs=(codonToSpeed,))
     seqToSpeed = createSpeedsDict(p.map(calcSeqSpeed,seqArray)) ##header -> tuple of array of codon efficiency values
     if args.speeds:
         if args.verbose:
@@ -491,7 +507,7 @@ if __name__ == '__main__':
     if args.determine_cutoff:
         if args.verbose:
             sys.stderr.write('Determining Cutoff Percentage from Ramp Sequences...\n')
-        p = Pool(args.threads)
+        p = Pool(processes=args.threads,initializer=init_pool2,initargs=(seqToSpeed,ribosomeWindowLength,middleFunc,args,percentThatIsRamp))
         bottlenecks = p.map(getBottleneck,list(seqToSpeed.keys()))
         counts = {}
         for percents in bottlenecks:
@@ -536,7 +552,7 @@ if __name__ == '__main__':
             noRampFile.close()
         outputRampSeqs(rampSeqs,args)
     #output speed values in a csv file if indicated
-    p = Pool(args.threads)
+    p = Pool(processes=args.threads,initializer=init_pool2,initargs=(seqToSpeed,ribosomeWindowLength,middleFunc,args,percentThatIsRamp))
     if args.vals:
         if args.verbose:
             sys.stderr.write('Writing Speeds File...\n')
